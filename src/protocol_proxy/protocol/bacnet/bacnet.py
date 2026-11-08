@@ -13,6 +13,7 @@ from bacpypes3.app import Application, ExecutionError
 from bacpypes3.basetypes import DateTime, PropertyReference
 from bacpypes3.constructeddata import AnyAtomic
 from bacpypes3.lib.batchread import BatchRead, DeviceAddressObjectPropertyReference
+from bacpypes3.netservice import RouterEntryStatus
 from bacpypes3.pdu import Address
 from bacpypes3.apdu import (ConfirmedPrivateTransferACK, ConfirmedPrivateTransferError, ConfirmedPrivateTransferRequest,
                             ErrorRejectAbortNack, TimeSynchronizationRequest)
@@ -27,11 +28,14 @@ _log = logging.getLogger(__name__)
 class BACnet:
     def __init__(self, local_interface, bacnet_port=0, vendor_id=999, object_name='VOLTTRON BACnet Proxy',
                  device_info_cache=None, router_info_cache=None, ase_id=None,
-                 apdu_timeout: float = 3.0, apdu_retries: int = 3, **_):
+                 apdu_timeout: float = 3.0, apdu_retries: int = 3, static_routes: dict | None = None, **_):
         """
         :param apdu_timeout: seconds to wait for a device to answer one request before retrying.
         :param apdu_retries: number of retries after the first attempt. A silent device therefore costs
             apdu_timeout * (apdu_retries + 1) seconds per request.
+        :param static_routes: {network number: router address} entered into bacpypes3's router table at
+            start, for routers that a local Who-Is-Router-To-Network broadcast cannot reach (another
+            subnet). See load_static_routes() for where they come from when not passed in.
         """
         vendor_info = get_vendor_info(vendor_id)
         device_object_class = vendor_info.get_object_class(ObjectType.device)
@@ -58,6 +62,36 @@ class BACnet:
             router_info_cache=router_info_cache,
             aseID=ase_id
         )
+        self.static_routes = {int(k): str(v) for k, v in (static_routes or {}).items()}
+        if self.static_routes:
+            asyncio.get_event_loop().create_task(self.install_static_routes())
+
+    @staticmethod
+    def load_static_routes(path: str | None = None) -> dict[int, str]:
+        """Read {network: router address} from a JSON file: `path`, else the file named by
+        BACNET_PROXY_STATIC_ROUTES, else $VOLTTRON_HOME/bacnet-routes.json. Missing file: no routes."""
+        import os
+        candidates = [path, os.environ.get('BACNET_PROXY_STATIC_ROUTES'),
+                      os.path.join(os.environ['VOLTTRON_HOME'], 'bacnet-routes.json') if os.environ.get('VOLTTRON_HOME')
+                      else None]
+        for candidate in candidates:
+            if candidate and os.path.exists(candidate):
+                with open(candidate) as fh:
+                    routes = json.load(fh)
+                _log.info(f'Static BACnet routes from {candidate}: {routes}')
+                return {int(k): str(v) for k, v in routes.items()}
+        return {}
+
+    async def install_static_routes(self):
+        """Tell the network layer which router reaches each configured network, for the local
+        network (None: the only one this proxy has) so that requests to <dnet>:<mac> go to the
+        router's IP without a broadcast discovery that would not cross subnets."""
+        cache = self.app.nsap.router_info_cache
+        for dnet, router in self.static_routes.items():
+            address = Address(router)
+            for snet in (None, 0):
+                await cache.set_path_info(snet, dnet, address, RouterEntryStatus.available)
+            _log.info(f'Static route: network {dnet} via router {router}')
 
     BACNET_STANDARD_PORT = 47808
 

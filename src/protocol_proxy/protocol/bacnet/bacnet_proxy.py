@@ -50,10 +50,12 @@ class BACnetProxy(AsyncioProtocolProxy):
 
     def __init__(self, local_interface, bacnet_port=0, vendor_id=999, object_name='VOLTTRON BACnet Proxy',
                  apdu_timeout: float = 3.0, apdu_retries: int = 3, batch_read_timeout: float | None = None,
-                 **kwargs):
+                 static_routes_file: str | None = None, **kwargs):
         super(BACnetProxy, self).__init__(**kwargs)
+        static_routes = BACnet.load_static_routes(static_routes_file)
         self.bacnet = BACnet(local_interface, bacnet_port, vendor_id, object_name,
-                             apdu_timeout=apdu_timeout, apdu_retries=apdu_retries, **kwargs)
+                             apdu_timeout=apdu_timeout, apdu_retries=apdu_retries, static_routes=static_routes,
+                             **kwargs)
         self.loop = asyncio.get_event_loop()
         self.request_timeout, self.batch_read_timeout = self.callback_timeouts(apdu_timeout, apdu_retries,
                                                                                batch_read_timeout)
@@ -471,5 +473,9 @@ def launch_bacnet(parser: ArgumentParser) -> tuple[ArgumentParser, Callable]:
     parser.add_argument('--batch-read-timeout', type=float, default=None,
                         help='Seconds the proxy allows a BATCH_READ before abandoning it. Defaults from the APDU'
                              ' settings; see BACnetProxy.callback_timeouts.')
+    parser.add_argument('--static-routes-file', type=str, default=None,
+                        help='JSON file of {network number: router address} for routers a local broadcast'
+                             ' cannot find. Default: $BACNET_PROXY_STATIC_ROUTES, else'
+                             ' $VOLTTRON_HOME/bacnet-routes.json.')
     return parser, run_proxy
 
