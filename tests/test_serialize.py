@@ -51,7 +51,9 @@ def test_pdu_errors_are_classified():
 def test_error_type_reports_class_and_code():
     from bacpypes3.basetypes import ErrorType
     out = roundtrip({'p': ErrorType(errorClass='object', errorCode='unknown-object')})['error']['p']
-    assert out['error'] == 'ErrorType' and 'unknown-object' in out['error_code'] and 'unknown-object' in out['details']
+    # bacpypes3 0.1 names the class Error; earlier releases, ErrorType
+    assert out['error'] in ('ErrorType', 'Error')
+    assert 'unknown-object' in out['error_code'] and 'unknown-object' in out['details']
 
 
 def test_list_of_mixed_values_and_errors():

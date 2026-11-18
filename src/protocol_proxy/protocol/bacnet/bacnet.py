@@ -91,6 +91,10 @@ class BACnet:
             address = Address(router)
             for snet in (None, 0):
                 await cache.set_path_info(snet, dnet, address, RouterEntryStatus.available)
+                # the reply from <dnet> is checked against the router's own set of networks:
+                # without it bacpypes3 raises on the reply and drops it, and the read times out
+                dnets = await cache.get_router_dnets(snet, address) or set()
+                await cache.set_router_dnets(snet, address, dnets | {dnet})
             _log.info(f'Static route: network {dnet} via router {router}')
 
     BACNET_STANDARD_PORT = 47808

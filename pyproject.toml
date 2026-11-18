@@ -21,7 +21,7 @@ ignore_missing_imports = true
 
 [tool.poetry]
 name = "protocol-proxy-bacnet"
-version = "2.0.0rc4.post1"
+version = "2.0.0rc4.post2"
 description = "A BACnet Protocol Proxy implementation. A BACnet Manager is provided which can launch proxy devices for communication with a BACnet network."
 authors = ["The VOLTTRON Development Team <volttron@pnnl.gov>"]
 license = "Apache-2.0"
@@ -45,7 +45,8 @@ bacpypes3 = ">=0.0.102"
 protocol-proxy = ">=2.0.0rc3"
 
 [tool.poetry.group.dev.dependencies]
-# No additional dependencies.
+# what the test workflow runs: `poetry install --with dev`, then `poetry run pytest`
+pytest = ">=8"
 
 [tool.poetry.group.documentation.dependencies]
 Sphinx = "^4.5.0"
@@ -64,3 +65,8 @@ ignore_patterns = [
     "dist/**",
     "docs/**"
 ]
+
+[tool.pytest.ini_options]
+# the tests import `tests.conftest`; a bare `pytest` needs the repository root on the path
+pythonpath = ["."]
+testpaths = ["tests"]
