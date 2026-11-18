@@ -15,6 +15,7 @@ from protocol_proxy.ipc import callback, ProtocolProxyMessage
 from protocol_proxy.proxy.asyncio import AsyncioProtocolProxy
 from protocol_proxy.proxy.launch import launch, redact
 
+from . import bacnet as _bacnet
 from .bacnet import BACnet
 from .bacnet_utils import make_jsonable
 from .cache_handler import (_clear_cache_for_device, _get_cache_stats)
@@ -52,7 +53,9 @@ class BACnetProxy(AsyncioProtocolProxy):
                  apdu_timeout: float = 3.0, apdu_retries: int = 3, batch_read_timeout: float | None = None,
                  static_routes_file: str | None = None, **kwargs):
         super(BACnetProxy, self).__init__(**kwargs)
-        static_routes = BACnet.load_static_routes(static_routes_file)
+        # through the module, not the name above: the routes file is read the same way whatever stands in
+        # for the BACnet class (the tests put a stand-in there)
+        static_routes = _bacnet.BACnet.load_static_routes(static_routes_file)
         self.bacnet = BACnet(local_interface, bacnet_port, vendor_id, object_name,
                              apdu_timeout=apdu_timeout, apdu_retries=apdu_retries, static_routes=static_routes,
                              **kwargs)
