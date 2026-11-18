@@ -1,3 +1,28 @@
+> **This is the plenum-project build of `protocol-proxy-bacnet`.** It is the
+> upstream library ([eclipse-volttron/lib-protocol-proxy-bacnet](https://github.com/eclipse-volttron/lib-protocol-proxy-bacnet))
+> at `2.0.0rc4` plus one change: **static routes**, so a VOLTTRON node can read
+> BACnet devices behind a router that is on another subnet (most MS/TP trunks).
+> Everything else is upstream's, unchanged.
+>
+> - The change is on the branch `plenum-static-routes`. `main` and `develop` are upstream's.
+> - Install the tag, in the node's venv, after the platform's first start:
+>   `pip install --force-reinstall --no-deps "git+https://github.com/plenum-project/lib-protocol-proxy-bacnet@plenum-2.0.0rc4.post2"`
+> - Use `post2` or later. `post1` sends the request but drops the routed reply, so every read of a routed device times out.
+> - How it is used, and the routes file Plenum writes: the [Plenum runbook](https://github.com/plenum-project/plenum/blob/main/docs/runbook.md), section 8.5.
+> - The same change as a patch against the stock package: `contrib/lib-protocol-proxy-bacnet` in the Plenum repository.
+>
+> ## Static routes
+>
+> The stock proxy finds routers by a local broadcast (Who-Is-Router-To-Network),
+> which never leaves the node's subnet. With a routes file, the proxy tells
+> bacpypes3 at start which router reaches each BACnet network, and requests to
+> `<network>:<mac>` are sent to that router directly.
+>
+> The file is JSON, network number to router address: `{"1010": "10.0.0.41"}`.
+> It is read from `--static-routes-file`, else the file named by
+> `BACNET_PROXY_STATIC_ROUTES`, else `$VOLTTRON_HOME/bacnet-routes.json`.
+> No file: no routes, and the proxy behaves as upstream's.
+
 # Protocol Proxy BACnet Library
 ![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)
